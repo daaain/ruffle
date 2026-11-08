@@ -1575,6 +1575,15 @@ impl<'gc> EditText<'gc> {
             let image = self.0.inline_images.borrow().get(*index).copied().flatten();
 
             if let Some(image) = image {
+                // The image is positioned (and scaled) via the transform stack, but its
+                // `world_bounds()` only follow the display-list parent chain, so they
+                // place it at the text field's origin. Off-screen culling (e.g. in
+                // `Bitmap::render_self`) would then drop images whose real position is
+                // on-screen as soon as the field's top-left area scrolls out of view.
+                // The text field's mask still clips the image to the field's bounds.
+                let was_offscreen = context.is_offscreen;
+                context.is_offscreen = true;
+
                 let requested_size = self
                     .0
                     .text_spans
@@ -1613,6 +1622,8 @@ impl<'gc> EditText<'gc> {
                 } else {
                     image.render(context);
                 }
+
+                context.is_offscreen = was_offscreen;
             }
         }
 
